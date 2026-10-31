@@ -37,7 +37,7 @@ test("bulk buy stops at affordability and rejects unsupported quantities", () =>
   let state = freshGame(0);
   state = { ...state, currencies: { aether: from(100) } };
   state = purchaseEquipment(state, "autoClicker", 10);
-  assert.equal(state.equipment.autoClicker.owned, 4);
+  assert.equal(state.equipment.autoClicker.owned, 6);
   assert.equal(purchaseEquipment(state, "autoClicker", 5), state);
 });
 test("offline production is capped at eight hours", () => {

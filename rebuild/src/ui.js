@@ -1,5 +1,6 @@
 import { format } from "./core/decimal.js";
 import { getEquipmentCost, getProduction, getUpgradeCost } from "./core/engine.js";
+import { compare } from "./core/decimal.js";
 import { EQUIPMENT } from "./core/economy.js";
 
 const $ = id => document.getElementById(id);
@@ -17,10 +18,9 @@ export function render(state) {
       <div class="equipment-icon">${def.icon}</div><div class="equipment-info">
       <span class="eyebrow">EQUIPMENT ${String(EQUIPMENT.indexOf(def)+1).padStart(3,"0")}</span><h2>${def.name}</h2><p>${def.description}</p>
       <div class="equipment-stats"><span>所有数 <b>${item.owned.toLocaleString("ja-JP")}</b></span><span>生産 <b>${format(def.baseProduction)} AE/s</b></span><span>強化 <b>Lv.${item.upgradeLevel} / Tier ${nextTier}</b></span></div></div>
-      <div class="equipment-buy"><strong>${format(cost)} AE</strong><div class="buy-quantities"><button data-buy="${def.id}" data-quantity="1">×1</button><button data-buy="${def.id}" data-quantity="10">×10</button><button data-buy="${def.id}" data-quantity="100">×100</button></div>
-      <small>強化 ${format(upgrade)} AE</small><button data-upgrade="${def.id}" ${item.owned < 1 ? "disabled" : ""}>強化する</button></div></article>`;
+      <div class="equipment-buy"><strong>${format(cost)} AE</strong><div class="buy-quantities"><button data-buy="${def.id}" data-quantity="1" ${compare(state.currencies.aether,cost)<0?"disabled":""}>×1</button><button data-buy="${def.id}" data-quantity="10">×10</button><button data-buy="${def.id}" data-quantity="100">×100</button></div>
+      <small>強化 ${format(upgrade)} AE</small><button data-upgrade="${def.id}" ${item.owned < 1 || compare(state.currencies.aether,upgrade)<0 ? "disabled" : ""}>強化する</button></div></article>`;
   }).join("");
-  $("equipment-list").querySelectorAll("[data-buy]").forEach(button => button.disabled = false);
   $("equipment-list").querySelectorAll("[data-upgrade]").forEach(button => button.disabled = state.equipment[button.dataset.upgrade].owned < 1);
 }
 export function setSaveStatus(message) { $("save-status").textContent = message; }

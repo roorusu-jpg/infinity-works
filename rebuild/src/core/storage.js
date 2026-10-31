@@ -21,7 +21,7 @@ export function saveGame(state, storage = globalThis.localStorage) {
   if (!storage) throw new Error("Local storage is unavailable.");
   const serialized = JSON.stringify({ ...state, schemaVersion: SAVE_VERSION });
   const current = storage.getItem(SAVE_KEY);
-  if (current) storage.setItem(BACKUP_KEY, current);
+  if (current) { try { normalizeState(JSON.parse(current)); storage.setItem(BACKUP_KEY, current); } catch { /* do not overwrite a valid backup with corrupt data */ } }
   storage.setItem(SAVE_KEY, serialized);
 }
 
@@ -31,6 +31,6 @@ export function exportBackup(state) {
 
 export function importBackup(text, now = Date.now()) {
   const data = JSON.parse(text);
-  if (data.app !== "infinity-works" || data.schemaVersion !== SAVE_VERSION) throw new Error("This backup is not compatible with this version.");
+  if (data.app !== "infinity-works" || ![1, SAVE_VERSION].includes(data.schemaVersion)) throw new Error("This backup is not compatible with this version.");
   return normalizeState(data.state, now);
 }

@@ -110,7 +110,39 @@ equipmentTiers.forEach((t,i)=>{const ids={benches:'bench',workers:'worker',facto
 function refreshMaxProgressLive(){const maxPct=s.money.lte(0)?0:Math.min(100,Math.max(0,((s.money.e||0)+1)/309*100));$('maxbar').style.width=maxPct+'%';$('maxtext').textContent=fmt(s.money)+' / 1.38e+308 · 指数進捗 '+maxPct.toFixed(2)+'%'}function refreshGlobalBuffs(){const base=new Decimal(s.benches||0).plus(new Decimal(s.workers||0).mul(8)).plus(new Decimal(s.factories||0).mul(60)).plus(new Decimal(s.drone||0).mul(250)).plus(new Decimal(s.quantum||0).mul(5000)).plus(new Decimal(s.refinery||0).mul(100000)).plus(extraEquipmentProduction());const total=base.gt(0)?prod().div(base):new Decimal(1);const missionCount=(s.missionClaims||[]).length+(s.claimed?1:0)+(s.totalclaimed?1:0),achievementCount=(s.achievementClaims||[]).length;const clickTotal=click().div(s.power.gt(0)?s.power:1),rewardBonusPct=missionCount*2+achievementCount;$('buff-production').textContent='生産全体 +'+fmt(total.minus(1).mul(100))+'%';$('buff-rewards').textContent='報酬バフ +'+rewardBonusPct+'%（合計）';$('buff-missions').textContent='ミッション +'+(missionCount*2)+'%（'+missionCount+'件）';$('buff-achievements').textContent='実績 +'+achievementCount+'%（'+achievementCount+'件）';$('buff-click').textContent='クリック +'+fmt(clickTotal.minus(1).mul(100))+'%'}function refreshGrowthReportLive(){const req=prestigeRequirement(),ready=s.money.gte(req),pct=ready?100:Math.max(0,Math.min(100,s.money.div(req).mul(100).toNumber()));$('lifetime').textContent=fmt(s.lifetime);$('prestiges').textContent=s.prestiges+' 回';$('cores').textContent=fmt(s.cores||0);$('prestigereward').textContent='転生すると次元コア +'+fmt(prestigeGain())+' ／ 永続倍率 +'+fmt(prestigeMultGain());$('goal').textContent=fmt(s.money)+' / '+fmt(req);$('goalbar').style.width=pct+'%';$('prestige').disabled=!ready;$('prestige').textContent=ready?'転生する（コア +'+fmt(prestigeGain())+'）':'転生（必要：'+fmt(req)+'）';const live=$('growth-live-status');if(live){live.textContent='● LIVE';live.style.color='var(--accent)';live.title='最終更新 '+new Date().toLocaleTimeString('ja-JP')}}function refreshLiveNumbers(){$('money').textContent=fmt(s.money);$('hud-money').textContent=fmt(s.money);$('rate').textContent='+'+fmt(prod())+' / 秒';$('rotationcount').textContent=fmt(s.rotationCount);$('rotationrate').textContent=fmt(rotationReward().mul(rotationSpeed()))+'/s';refreshGrowthReportLive();refreshMaxProgressLive();refreshGlobalBuffs();refreshProductionDiagnostic()}
 let rotationLast=Date.now();
 setInterval(()=>runIsolatedTask('回転処理',()=>{const now=Date.now(),dt=Math.min(1,Math.max(0,(now-rotationLast)/1000));rotationLast=now;if(dt>0){const turns=(s.rotationProgress||0)+rotationSpeed()*dt,completed=Math.floor(turns);if(completed>0){s.rotationCount=s.rotationCount.plus(completed);addRotationPoints(rotationReward().mul(completed))}s.rotationProgress=turns%1}}),50);
-setInterval(()=>runIsolatedTask('自動処理',()=>{if(s.autoPrestige&&unlockedSkillTreeCount()>=25&&s.money.gte(prestigeRequirement()))performPrestige(false);if(!s.auto||unlockedSkillTreeCount()<10)return;const autoEquipItems=equipmentTiers.map((t,i)=>({cost:equipmentCost(t),unlocked:i<3||equipmentCount(equipmentTiers[i-1])>=10,buy:()=>{if(t.extra){s.extraEquipCounts[t.key]=(s.extraEquipCounts[t.key]||0)+1;s.extraEquipCosts[t.key]=equipmentCost(t).mul('1.45').ceil().toString()}else{const k=t.key;s[k]=(s[k]||0)+1;s[t.costKey]=new Decimal(s[t.costKey]).mul(({benches:'1.16',workers:'1.2',factories:'1.24',drone:'1.28',quantum:'1.32',refinery:'1.36'})[k]).ceil()}}}));const start=((s.autoEquipCursor||0)%autoEquipItems.length+autoEquipItems.length)%autoEquipItems.length;for(let step=0;step<autoEquipItems.length;step++){const idx=(start+step)%autoEquipItems.length,item=autoEquipItems[idx];if(item.unlocked&&s.money.gte(item.cost)){s.money=s.money.minus(item.cost);item.buy();s.autoEquipCursor=(idx+1)%autoEquipItems.length;render();save();break}}}),250);
+function runAutoPurchase(){
+if(!s.auto)return;
+if(unlockedSkillTreeCount()<10){s.auto=false;render();save();say('自動購入にはスキルツリー10個の解放が必要です');return}
+s.extraEquipCounts=s.extraEquipCounts||{};
+s.extraEquipCosts=s.extraEquipCosts||{};
+const count=equipmentTiers.length;
+const startIndex=((Number(s.autoEquipCursor)||0)%count+count)%count;
+for(let step=0;step<count;step++){
+const idx=(startIndex+step)%count,t=equipmentTiers[idx];
+const unlocked=idx<3||equipmentCount(equipmentTiers[idx-1])>=10;
+if(!unlocked)continue;
+const cost=equipmentCost(t);
+if(!cost||!cost.isFinite()||cost.lte(0)||s.money.lt(cost))continue;
+s.money=s.money.minus(cost);
+if(t.extra){
+s.extraEquipCounts[t.key]=(s.extraEquipCounts[t.key]||0)+1;
+s.extraEquipCosts[t.key]=cost.mul('1.45').ceil().toString();
+}else{
+const factor={benches:'1.16',workers:'1.2',factories:'1.24',drone:'1.28',quantum:'1.32',refinery:'1.36'}[t.key];
+if(!factor)throw new Error('自動購入の価格設定が見つかりません: '+t.key);
+s[t.key]=(s[t.key]||0)+1;
+s[t.costKey]=cost.mul(factor).ceil();
+}
+s.autoEquipCursor=(idx+1)%count;
+render();
+save();
+return;
+}
+}
+setInterval(()=>runIsolatedTask('自動処理',()=>{
+if(s.autoPrestige&&unlockedSkillTreeCount()>=25&&s.money.gte(prestigeRequirement()))performPrestige(false);
+runAutoPurchase();
+}),250);
 setInterval(()=>{try{refreshGrowthReportLive()}catch(error){recordDebugError('成長レポート更新',error)}},100);setInterval(()=>{try{refreshMaxProgressLive()}catch(error){recordDebugError('上部進捗更新',error)}},100);setInterval(()=>{try{$('money').textContent=fmt(s.money);$('hud-money').textContent=fmt(s.money);$('rate').textContent='+'+fmt(prod())+' / 秒';$('rotationcount').textContent=fmt(s.rotationCount);$('rotationrate').textContent=fmt(rotationReward().mul(rotationSpeed()))+'/s';refreshGlobalBuffs();refreshProductionDiagnostic()}catch(error){recordDebugError('数値表示更新',error)}},100);
 setInterval(()=>runIsolatedTask('画面更新',render),250);
 setInterval(()=>runIsolatedTask('自動セーブ',save),5000);

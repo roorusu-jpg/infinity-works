@@ -31,3 +31,5 @@ export function buy(balance, cost) {
   return subtract(balance, cost);
 }
 export function addCurrency(balance, amount) { return add(balance, amount); }
+
+export function productionForSeconds(rate, seconds) { return multiply(rate, from(seconds)); }

@@ -1,4 +1,4 @@
-import { add, compare, from } from "./decimal.js";
+import { add, compare, from, multiply } from "./decimal.js";
 import { addCurrency, buy, CLICK_GAIN, EQUIPMENT, equipmentCost, equipmentProduction, productionForSeconds, upgradeCost, RESEARCH } from "./economy.js";
 import { createInitialState } from "./state.js";
 
@@ -47,7 +47,7 @@ export function purchaseUpgrade(state, id) {
 export function getProduction(state) {
   const base = EQUIPMENT.reduce((sum, def) => add(sum, equipmentProduction(def, state.equipment[def.id].owned, state.equipment[def.id].upgradeLevel)), from(0));
   const factor = (state.research.includes("efficientMotors") ? 1.25 : 1) * (state.research.includes("etherAnalysis") ? 1.5 : 1);
-  return from(base.m * factor, base.e);
+  return multiply(base, from(factor));
 }
 export function advance(state, now = Date.now(), { offline = false } = {}) {
   const elapsed = Math.max(0, (now - state.lastTickAt) / 1000), seconds = offline ? Math.min(elapsed, OFFLINE_CAP_SECONDS) : elapsed;

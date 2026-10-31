@@ -15,7 +15,7 @@ document.getElementById("equipment-list").addEventListener("click", event => {
   if (researchButton) state = purchaseResearch(state, researchButton.dataset.research);
   render(state); persist();
 });
-setupTabs(); render(state); persist();
+document.getElementById("research-list").addEventListener("click", event => {\n  const button = event.target.closest("[data-research]");\n  if (!button) return;\n  state = purchaseResearch(state, button.dataset.research);\n  render(state); persist();\n});\nsetupTabs(); render(state); persist();
 if (loaded.recovered) setSaveStatus("バックアップから復旧");
 if (loaded.state) setSaveStatus("セーブデータを読み込みました");
 setInterval(update, 250);

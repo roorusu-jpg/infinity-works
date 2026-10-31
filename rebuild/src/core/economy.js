@@ -33,3 +33,9 @@ export function buy(balance, cost) {
 export function addCurrency(balance, amount) { return add(balance, amount); }
 
 export function productionForSeconds(rate, seconds) { return multiply(rate, from(seconds)); }
+
+export const RESEARCH = [
+{id:'focusedCollection',name:'集束採集',description:'クリック獲得量が2倍になる。',cost:50,requirement:s=>s.equipment.autoClicker.owned>=1,effect:'クリック獲得量 ×2'},
+{id:'efficientMotors',name:'高効率駆動',description:'全設備の生産量が25%増加する。',cost:250,requirement:s=>s.equipment.autoClicker.owned>=5,effect:'全設備生産量 ×1.25'},
+{id:'etherAnalysis',name:'エーテル解析',description:'全設備の生産量が50%増加する。',cost:1000,requirement:s=>s.equipment.microGenerator.owned>=1,effect:'全設備生産量 ×1.5'}
+];

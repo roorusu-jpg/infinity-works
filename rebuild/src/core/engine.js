@@ -1,10 +1,19 @@
 import { add, compare, from } from "./decimal.js";
-import { addCurrency, buy, CLICK_GAIN, EQUIPMENT, equipmentCost, equipmentProduction, productionForSeconds, upgradeCost } from "./economy.js";
+import { addCurrency, buy, CLICK_GAIN, EQUIPMENT, equipmentCost, equipmentProduction, productionForSeconds, upgradeCost, RESEARCH } from "./economy.js";
 import { createInitialState } from "./state.js";
 
 export const OFFLINE_CAP_SECONDS = 8 * 60 * 60;
+export function getClickGain(state) { return from(state.research.includes("focusedCollection") ? 2 : 1); }
+export function purchaseResearch(state, id) {
+  const item = RESEARCH.find(x => x.id === id);
+  if (!item || state.research.includes(id) || !item.requirement(state)) return state;
+  const next = buy(state.currencies.aether, from(item.cost));
+  if (!next) return state;
+  return { ...state, currencies: { ...state.currencies, aether: next }, research: [...state.research, id] };
+}
 export function collect(state) {
-  return { ...state, currencies: { ...state.currencies, aether: addCurrency(state.currencies.aether, CLICK_GAIN) }, totalEarned: add(state.totalEarned, CLICK_GAIN), clicks: state.clicks + 1 };
+  const gain = getClickGain(state);
+  return { ...state, currencies: { ...state.currencies, aether: addCurrency(state.currencies.aether, gain) }, totalEarned: add(state.totalEarned, gain), clicks: state.clicks + 1 };
 }
 export function getEquipmentCost(state, id) {
   const def = EQUIPMENT.find(item => item.id === id), item = state.equipment[id];
@@ -36,7 +45,9 @@ export function purchaseUpgrade(state, id) {
   return { ...state, currencies: { ...state.currencies, aether: next }, equipment: { ...state.equipment, [id]: { ...item, upgradeLevel: item.upgradeLevel + 1 } } };
 }
 export function getProduction(state) {
-  return EQUIPMENT.reduce((sum, def) => add(sum, equipmentProduction(def, state.equipment[def.id].owned, state.equipment[def.id].upgradeLevel)), from(0));
+  const base = EQUIPMENT.reduce((sum, def) => add(sum, equipmentProduction(def, state.equipment[def.id].owned, state.equipment[def.id].upgradeLevel)), from(0));
+  const factor = (state.research.includes("efficientMotors") ? 1.25 : 1) * (state.research.includes("etherAnalysis") ? 1.5 : 1);
+  return from(base.m * factor, base.e);
 }
 export function advance(state, now = Date.now(), { offline = false } = {}) {
   const elapsed = Math.max(0, (now - state.lastTickAt) / 1000), seconds = offline ? Math.min(elapsed, OFFLINE_CAP_SECONDS) : elapsed;

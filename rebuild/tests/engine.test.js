@@ -47,3 +47,7 @@ test("offline production is capped at eight hours", () => {
   assert.equal(progressed.totalPlaySeconds, 8 * 60 * 60);
 });
 test("the five initial equipment definitions are present", () => { assert.equal(EQUIPMENT.length, 5); });
+
+import { purchaseResearch } from "../src/core/engine.js";
+test("research unlocks from equipment requirements and increases production", () => { let s=freshGame(0); s={...s,currencies:{aether:from(10000)},equipment:{...s.equipment,autoClicker:{owned:5,upgradeLevel:0,unlocked:true}}}; const before=getProduction(s); s=purchaseResearch(s,"efficientMotors"); assert.ok(s.research.includes("efficientMotors")); assert.equal(compare(s.currencies.aether,9750),0); assert.equal(compare(getProduction(s),before),1); });
+test("research cannot be purchased twice or before its requirement", () => { let s=freshGame(0); s={...s,currencies:{aether:from(10000)}}; assert.equal(purchaseResearch(s,"etherAnalysis"),s); });

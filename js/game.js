@@ -110,34 +110,58 @@ equipmentTiers.forEach((t,i)=>{const ids={benches:'bench',workers:'worker',facto
 function refreshMaxProgressLive(){const maxPct=s.money.lte(0)?0:Math.min(100,Math.max(0,((s.money.e||0)+1)/309*100));$('maxbar').style.width=maxPct+'%';$('maxtext').textContent=fmt(s.money)+' / 1.38e+308 · 指数進捗 '+maxPct.toFixed(2)+'%'}function refreshGlobalBuffs(){const base=new Decimal(s.benches||0).plus(new Decimal(s.workers||0).mul(8)).plus(new Decimal(s.factories||0).mul(60)).plus(new Decimal(s.drone||0).mul(250)).plus(new Decimal(s.quantum||0).mul(5000)).plus(new Decimal(s.refinery||0).mul(100000)).plus(extraEquipmentProduction());const total=base.gt(0)?prod().div(base):new Decimal(1);const missionCount=(s.missionClaims||[]).length+(s.claimed?1:0)+(s.totalclaimed?1:0),achievementCount=(s.achievementClaims||[]).length;const clickTotal=click().div(s.power.gt(0)?s.power:1),rewardBonusPct=missionCount*2+achievementCount;$('buff-production').textContent='生産全体 +'+fmt(total.minus(1).mul(100))+'%';$('buff-rewards').textContent='報酬バフ +'+rewardBonusPct+'%（合計）';$('buff-missions').textContent='ミッション +'+(missionCount*2)+'%（'+missionCount+'件）';$('buff-achievements').textContent='実績 +'+achievementCount+'%（'+achievementCount+'件）';$('buff-click').textContent='クリック +'+fmt(clickTotal.minus(1).mul(100))+'%'}function refreshGrowthReportLive(){const req=prestigeRequirement(),ready=s.money.gte(req),pct=ready?100:Math.max(0,Math.min(100,s.money.div(req).mul(100).toNumber()));$('lifetime').textContent=fmt(s.lifetime);$('prestiges').textContent=s.prestiges+' 回';$('cores').textContent=fmt(s.cores||0);$('prestigereward').textContent='転生すると次元コア +'+fmt(prestigeGain())+' ／ 永続倍率 +'+fmt(prestigeMultGain());$('goal').textContent=fmt(s.money)+' / '+fmt(req);$('goalbar').style.width=pct+'%';$('prestige').disabled=!ready;$('prestige').textContent=ready?'転生する（コア +'+fmt(prestigeGain())+'）':'転生（必要：'+fmt(req)+'）';const live=$('growth-live-status');if(live){live.textContent='● LIVE';live.style.color='var(--accent)';live.title='最終更新 '+new Date().toLocaleTimeString('ja-JP')}}function refreshLiveNumbers(){$('money').textContent=fmt(s.money);$('hud-money').textContent=fmt(s.money);$('rate').textContent='+'+fmt(prod())+' / 秒';$('rotationcount').textContent=fmt(s.rotationCount);$('rotationrate').textContent=fmt(rotationReward().mul(rotationSpeed()))+'/s';refreshGrowthReportLive();refreshMaxProgressLive();refreshGlobalBuffs();refreshProductionDiagnostic()}
 let rotationLast=Date.now();
 setInterval(()=>runIsolatedTask('回転処理',()=>{const now=Date.now(),dt=Math.min(1,Math.max(0,(now-rotationLast)/1000));rotationLast=now;if(dt>0){const turns=(s.rotationProgress||0)+rotationSpeed()*dt,completed=Math.floor(turns);if(completed>0){s.rotationCount=s.rotationCount.plus(completed);addRotationPoints(rotationReward().mul(completed))}s.rotationProgress=turns%1}}),50);
+const autoBuyDiagnostics={ticks:0,purchases:0,lastResult:'未実行',lastTier:'—',lastAt:0};
+function refreshAutoBuyDiagnostic(){
+const el=$('production-diagnostic');if(!el)return;
+el.dataset.autoEnabled=String(!!s.auto);
+el.dataset.autoSkillCount=String(unlockedSkillTreeCount());
+el.dataset.autoTicks=String(autoBuyDiagnostics.ticks);
+el.dataset.autoPurchases=String(autoBuyDiagnostics.purchases);
+el.dataset.autoResult=autoBuyDiagnostics.lastResult;
+el.dataset.autoTier=autoBuyDiagnostics.lastTier;
+el.dataset.autoAt=String(autoBuyDiagnostics.lastAt);
+}
 function runAutoPurchase(){
-if(!s.auto)return;
-if(unlockedSkillTreeCount()<10){s.auto=false;render();save();say('自動購入にはスキルツリー10個の解放が必要です');return}
+autoBuyDiagnostics.ticks++;
+if(!s.auto){autoBuyDiagnostics.lastResult='OFF';refreshAutoBuyDiagnostic();return}
+const skillCount=unlockedSkillTreeCount();
+if(skillCount<10){s.auto=false;autoBuyDiagnostics.lastResult='スキル不足：'+skillCount+'/10';render();save();refreshAutoBuyDiagnostic();say('自動購入にはスキルツリー10個の解放が必要です');return}
 s.extraEquipCounts=s.extraEquipCounts||{};
 s.extraEquipCosts=s.extraEquipCosts||{};
+if(!s.money||!s.money.isFinite()){autoBuyDiagnostics.lastResult='資産データが不正';refreshAutoBuyDiagnostic();return}
 const count=equipmentTiers.length;
-const startIndex=((Number(s.autoEquipCursor)||0)%count+count)%count;
+const rawCursor=Number(s.autoEquipCursor);
+const startIndex=Number.isFinite(rawCursor)?((Math.trunc(rawCursor)%count)+count)%count:0;
+let unlockedCount=0,affordableCount=0;
 for(let step=0;step<count;step++){
 const idx=(startIndex+step)%count,t=equipmentTiers[idx];
 const unlocked=idx<3||equipmentCount(equipmentTiers[idx-1])>=10;
 if(!unlocked)continue;
+unlockedCount++;
 const cost=equipmentCost(t);
-if(!cost||!cost.isFinite()||cost.lte(0)||s.money.lt(cost))continue;
+if(!cost||!cost.isFinite()||cost.lte(0))continue;
+if(s.money.lt(cost))continue;
+affordableCount++;
 s.money=s.money.minus(cost);
 if(t.extra){
-s.extraEquipCounts[t.key]=(s.extraEquipCounts[t.key]||0)+1;
+s.extraEquipCounts[t.key]=(Number(s.extraEquipCounts[t.key])||0)+1;
 s.extraEquipCosts[t.key]=cost.mul('1.45').ceil().toString();
 }else{
 const factor={benches:'1.16',workers:'1.2',factories:'1.24',drone:'1.28',quantum:'1.32',refinery:'1.36'}[t.key];
 if(!factor)throw new Error('自動購入の価格設定が見つかりません: '+t.key);
-s[t.key]=(s[t.key]||0)+1;
+s[t.key]=(Number(s[t.key])||0)+1;
 s[t.costKey]=cost.mul(factor).ceil();
 }
 s.autoEquipCursor=(idx+1)%count;
-render();
-save();
-return;
+autoBuyDiagnostics.purchases++;
+autoBuyDiagnostics.lastResult='購入成功';
+autoBuyDiagnostics.lastTier=t.key;
+autoBuyDiagnostics.lastAt=Date.now();
+render();save();refreshAutoBuyDiagnostic();return;
 }
+autoBuyDiagnostics.lastResult=unlockedCount===0?'購入可能な設備なし':affordableCount===0?'資産不足（購入可能設備 '+unlockedCount+' 種）':'購入対象なし';
+autoBuyDiagnostics.lastAt=Date.now();
+refreshAutoBuyDiagnostic();
 }
 setInterval(()=>runIsolatedTask('自動処理',()=>{
 if(s.autoPrestige&&unlockedSkillTreeCount()>=25&&s.money.gte(prestigeRequirement()))performPrestige(false);

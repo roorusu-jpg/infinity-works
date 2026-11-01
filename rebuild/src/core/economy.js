@@ -12,30 +12,23 @@ export const EQUIPMENT = [
 export const EQUIPMENT_COST_GROWTH = 1.15;
 export const UPGRADE_COST_GROWTH = 4;
 export const UPGRADE_POWER = 1.25;
-
-export function equipmentCost(definition, owned) {
-  return multiply(from(definition.baseCost), pow(from(EQUIPMENT_COST_GROWTH), owned));
-}
-export function upgradeCost(definition, level) {
-  return multiply(from(definition.baseCost * 2.5), pow(from(UPGRADE_COST_GROWTH), level));
-}
-export function equipmentMultiplier(level) {
-  return pow(from(UPGRADE_POWER), level);
-}
-export function equipmentProduction(definition, owned, level = 0) {
-  return multiply(multiply(from(definition.baseProduction), from(owned)), equipmentMultiplier(level));
-}
+export function equipmentCost(definition, owned) { return multiply(from(definition.baseCost), pow(from(EQUIPMENT_COST_GROWTH), owned)); }
+export function upgradeCost(definition, level) { return multiply(from(definition.baseCost * 2.5), pow(from(UPGRADE_COST_GROWTH), level)); }
+export function equipmentMultiplier(level) { return pow(from(UPGRADE_POWER), level); }
+export function equipmentProduction(definition, owned, level = 0) { return multiply(multiply(from(definition.baseProduction), from(owned)), equipmentMultiplier(level)); }
 export function canAfford(balance, cost) { return compare(balance, cost) >= 0; }
-export function buy(balance, cost) {
-  if (!canAfford(balance, cost)) return null;
-  return subtract(balance, cost);
-}
+export function buy(balance, cost) { if (!canAfford(balance, cost)) return null; return subtract(balance, cost); }
 export function addCurrency(balance, amount) { return add(balance, amount); }
-
 export function productionForSeconds(rate, seconds) { return multiply(rate, from(seconds)); }
 
 export const RESEARCH = [
-{id:'focusedCollection',name:'集束採集',description:'クリック獲得量が2倍になる。',cost:50,requirement:s=>s.equipment.autoClicker.owned>=1,effect:'クリック獲得量 ×2'},
-{id:'efficientMotors',name:'高効率駆動',description:'全設備の生産量が25%増加する。',cost:250,requirement:s=>s.equipment.autoClicker.owned>=5,effect:'全設備生産量 ×1.25'},
-{id:'etherAnalysis',name:'エーテル解析',description:'全設備の生産量が50%増加する。',cost:1000,requirement:s=>s.equipment.microGenerator.owned>=1,effect:'全設備生産量 ×1.5'}
+  { id: "focusedCollection", name: "集束採集", description: "クリック獲得量が2倍になる。", cost: 50, requirement: s => s.equipment.autoClicker.owned >= 1, effect: "クリック獲得量 ×2" },
+  { id: "efficientMotors", name: "高効率駆動", description: "全設備の生産量が25%増加する。", cost: 250, requirement: s => s.equipment.autoClicker.owned >= 5, effect: "全設備生産量 ×1.25" },
+  { id: "etherAnalysis", name: "エーテル解析", description: "全設備の生産量が50%増加する。", cost: 1000, requirement: s => s.equipment.microGenerator.owned >= 1, effect: "全設備生産量 ×1.5" }
+];
+
+export const SKILLS = [
+  { id: "keenHands", name: "鋭敏な手", description: "クリック獲得量が2倍になる。", effect: "クリック ×2", requires: [] },
+  { id: "steadyFlow", name: "安定稼働", description: "全設備の生産量が25%増加する。", effect: "生産 ×1.25", requires: ["keenHands"] },
+  { id: "deepResonance", name: "深層共鳴", description: "全設備の生産量が50%増加する。", effect: "生産 ×1.5", requires: ["steadyFlow"] }
 ];

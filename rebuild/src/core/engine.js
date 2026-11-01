@@ -1,9 +1,21 @@
 import { add, compare, from, multiply } from "./decimal.js";
-import { addCurrency, buy, CLICK_GAIN, EQUIPMENT, equipmentCost, equipmentProduction, productionForSeconds, upgradeCost, RESEARCH } from "./economy.js";
+import { addCurrency, buy, EQUIPMENT, equipmentCost, equipmentProduction, productionForSeconds, upgradeCost, RESEARCH, SKILLS } from "./economy.js";
 import { createInitialState } from "./state.js";
 
 export const OFFLINE_CAP_SECONDS = 8 * 60 * 60;
-export function getClickGain(state) { return from(state.research.includes("focusedCollection") ? 2 : 1); }
+export function getSkillPoints(state) {
+  const earned = Math.max(0, Math.floor(Number(state.totalEarned.m) * 10 ** Number(state.totalEarned.e) / 1000));
+  return Math.max(0, earned - state.skills.length);
+}
+export function getClickGain(state) {
+  const multiplier = (state.research.includes("focusedCollection") ? 2 : 1) * (state.skills.includes("keenHands") ? 2 : 1);
+  return from(multiplier);
+}
+export function purchaseSkill(state, id) {
+  const skill = SKILLS.find(item => item.id === id);
+  if (!skill || state.skills.includes(id) || !skill.requires.every(required => state.skills.includes(required)) || getSkillPoints(state) < 1) return state;
+  return { ...state, skills: [...state.skills, id] };
+}
 export function purchaseResearch(state, id) {
   const item = RESEARCH.find(x => x.id === id);
   if (!item || state.research.includes(id) || !item.requirement(state)) return state;
@@ -28,7 +40,7 @@ export function purchaseEquipment(state, id, quantity = 1) {
   if (!def || !item?.unlocked || ![1, 10, 100].includes(quantity)) return state;
   let balance = state.currencies.aether, owned = item.owned;
   for (let i = 0; i < quantity; i++) {
-    const cost = equipmentCost(def, owned), next = buy(balance, cost);
+    const next = buy(balance, equipmentCost(def, owned));
     if (!next) break;
     balance = next; owned++;
   }
@@ -46,7 +58,7 @@ export function purchaseUpgrade(state, id) {
 }
 export function getProduction(state) {
   const base = EQUIPMENT.reduce((sum, def) => add(sum, equipmentProduction(def, state.equipment[def.id].owned, state.equipment[def.id].upgradeLevel)), from(0));
-  const factor = (state.research.includes("efficientMotors") ? 1.25 : 1) * (state.research.includes("etherAnalysis") ? 1.5 : 1);
+  const factor = (state.research.includes("efficientMotors") ? 1.25 : 1) * (state.research.includes("etherAnalysis") ? 1.5 : 1) * (state.skills.includes("steadyFlow") ? 1.25 : 1) * (state.skills.includes("deepResonance") ? 1.5 : 1);
   return multiply(base, from(factor));
 }
 export function advance(state, now = Date.now(), { offline = false } = {}) {
